@@ -7,35 +7,49 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-const players = new Set();
+const players = new Map(); // ユーザー名を保持するMap
 let choices = new Map();
 
 wss.on('connection', (ws) => {
   console.log('WebSocket connection established');
 
-  players.add(ws);
+  // 新しいクライアントが接続したことをすべてのクライアントに通知
+  broadcastUserList();
 
   ws.on('close', () => {
     console.log('WebSocket connection closed');
-    players.delete(ws);
-    choices.delete(ws);
+
+    // クライアントが接続を切断したことをすべてのクライアントに通知
+    broadcastUserList();
   });
 
   ws.on('message', (message) => {
-    const playerChoice = JSON.parse(message).playerChoice;
-    choices.set(ws, playerChoice);
+    const data = JSON.parse(message);
+    
+    if (data.type === 'join') {
+      // クライアントがユーザー名を送信したときの処理
+      const username = data.username;
+      players.set(ws, username);
 
-    if (choices.size === 2) {
-      // 2人揃ったらじゃんけんの結果を計算して返す
-      const [player1, player2] = Array.from(players);
-      const result = determineWinner(choices.get(player1), choices.get(player2));
-
-      // 結果を送信
-      broadcastResult(result);
-
-      // 選択をリセット
-      choices.clear();
+      // 新しいユーザーが接続したことをすべてのクライアントに通知
+      broadcastUserList();
+    } else if (data.type === 'game') {
+      // じゃんけんの処理
+      const playerChoice = data.playerChoice;
+      choices.set(ws, playerChoice);
+      if (choices.size === 2) {
+        // 2人揃ったらじゃんけんの結果を計算して返す
+        const [player1, player2] = Array.from(players);
+        const result = determineWinner(choices.get(player1), choices.get(player2));
+  
+        // 結果を送信
+        broadcastResult(result);
+  
+        // 選択をリセット
+        choices.clear();
+      }
     }
+
   });
 });
 
@@ -43,6 +57,18 @@ function broadcastResult(result) {
   players.forEach((player) => {
     if (player.readyState === WebSocket.OPEN) {
       player.send(JSON.stringify({ result }));
+    }
+  });
+}
+
+function broadcastUserList() {
+  const usernames = Array.from(players.values());
+  const userListMessage = JSON.stringify({ type: 'userList', usernames });
+
+  // すべてのクライアントにユーザーリストを通知
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(userListMessage);
     }
   });
 }
