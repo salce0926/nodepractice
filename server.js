@@ -38,6 +38,7 @@ wss.on('connection', (ws) => {
     } else if (data.type === 'game') {
       // じゃんけんの処理
       const playerChoice = data.playerChoice;
+      console.log(playerChoice);
       choices.set(ws, playerChoice);
       broadcastChoicesList();
       if (choices.size === 2) {
