@@ -1,9 +1,12 @@
 // server.js
 const express = require('express');
 const bodyParser = require('body-parser');
+const cors = require('cors'); // corsモジュールをインポート
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+app.use(cors()); // corsミドルウェアを使用
 
 app.use(bodyParser.json());
 
