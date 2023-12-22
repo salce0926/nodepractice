@@ -18,6 +18,8 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     console.log('WebSocket connection closed');
+    players.delete();
+    choices.delete();
 
     // クライアントが接続を切断したことをすべてのクライアントに通知
     broadcastUserList();
@@ -37,6 +39,7 @@ wss.on('connection', (ws) => {
       // じゃんけんの処理
       const playerChoice = data.playerChoice;
       choices.set(ws, playerChoice);
+      broadcastChoicesList();
       if (choices.size === 2) {
         // 2人揃ったらじゃんけんの結果を計算して返す
         const [player1, player2] = Array.from(players);
@@ -69,6 +72,18 @@ function broadcastUserList() {
   wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(userListMessage);
+    }
+  });
+}
+
+function broadcastChoicesList() {
+  const playersChoices = Array.from(choices.values());
+  const choicesMessage = JSON.stringify({ type: 'userList', playersChoices });
+
+  // すべてのクライアントにユーザーリストを通知
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(choicesMessage);
     }
   });
 }
