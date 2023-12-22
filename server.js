@@ -38,8 +38,8 @@ wss.on('connection', (ws) => {
     } else if (data.type === 'game') {
       // じゃんけんの処理
       const playerChoice = data.playerChoice;
-      console.log(playerChoice);
       choices.set(ws, playerChoice);
+      console.log(choices);
       broadcastChoicesList();
       if (choices.size === 2) {
         // 2人揃ったらじゃんけんの結果を計算して返す
