@@ -1,0 +1,14 @@
+{
+    "name": "rock-paper-scissors-game",
+    "version": "1.0.0",
+    "description": "A simple Rock-Paper-Scissors game",
+    "main": "server.js",
+    "scripts": {
+      "start": "node server.js"
+    },
+    "dependencies": {
+      "express": "^4.17.1",
+      "body-parser": "^1.19.0"
+    }
+  }
+  
