@@ -1,14 +1,14 @@
 {
-    "name": "rock-paper-scissors-game",
+    "name": "websocket-rock-paper-scissors",
     "version": "1.0.0",
-    "description": "A simple Rock-Paper-Scissors game",
+    "description": "WebSocket Rock-Paper-Scissors Game Server",
     "main": "server.js",
     "scripts": {
       "start": "node server.js"
     },
     "dependencies": {
       "express": "^4.17.1",
-      "body-parser": "^1.19.0"
+      "ws": "^7.5.0"
     }
   }
   
