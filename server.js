@@ -1,48 +1,43 @@
 // server.js
 const express = require('express');
-const bodyParser = require('body-parser');
-const cors = require('cors'); // corsモジュールをインポート
+const http = require('http');
+const WebSocket = require('ws');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
 
-app.use(cors()); // corsミドルウェアを使用
+const players = new Set();
 
-app.use(bodyParser.json());
+wss.on('connection', (ws) => {
+  // WebSocket接続が確立された時の処理
+  console.log('WebSocket connection established');
 
-app.post('/play', (req, res) => {
-  const { playerChoice } = req.body;
+  // 新しいプレイヤーをセットに追加
+  players.add(ws);
 
-  // ゲームロジックを実行
-  const computerChoice = getComputerChoice();
-  const result = determineWinner(playerChoice, computerChoice);
+  // クライアントが接続を切断したときの処理
+  ws.on('close', () => {
+    console.log('WebSocket connection closed');
+    players.delete(ws);
+  });
 
-  // ゲーム結果を返す
-  res.json({ result, computerChoice });
+  // クライアントからのメッセージを処理
+  ws.on('message', (message) => {
+    // すべてのプレイヤーにメッセージを送信
+    broadcast(message);
+  });
 });
 
-function getComputerChoice() {
-  // コンピュータの選択ロジックを実装
-  const choices = ['rock', 'paper', 'scissors'];
-  const randomIndex = Math.floor(Math.random() * choices.length);
-  return choices[randomIndex];
+function broadcast(message) {
+  // すべてのプレイヤーにメッセージを送信
+  players.forEach((player) => {
+    if (player.readyState === WebSocket.OPEN) {
+      player.send(message);
+    }
+  });
 }
 
-function determineWinner(playerChoice, computerChoice) {
-  // ゲームの勝敗ロジックを実装
-  if (
-    (playerChoice === 'rock' && computerChoice === 'scissors') ||
-    (playerChoice === 'paper' && computerChoice === 'rock') ||
-    (playerChoice === 'scissors' && computerChoice === 'paper')
-  ) {
-    return 'win';
-  } else if (playerChoice === computerChoice) {
-    return 'draw';
-  } else {
-    return 'lose';
-  }
-}
-
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+server.listen(3000, () => {
+  console.log('Server is running on port 3000');
 });
