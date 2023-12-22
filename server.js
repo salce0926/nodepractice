@@ -7,22 +7,23 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-const players = new Map(); // ユーザー名を保持するMap
-let choices = new Map();
+const players = new Map(); // ユーザー名をWebSocketオブジェクトにマップ
+const choices = new Map(); // ユーザー名をじゃんけんの手にマップ
 
 wss.on('connection', (ws) => {
   console.log('WebSocket connection established');
 
-  // 新しいクライアントが接続したことをすべてのクライアントに通知
-  broadcastUserList();
-
   ws.on('close', () => {
     console.log('WebSocket connection closed');
-    players.delete();
-    choices.delete();
 
-    // クライアントが接続を切断したことをすべてのクライアントに通知
-    broadcastUserList();
+    // クライアントが接続を切断したときにクリーンアップ
+    players.forEach((client, username) => {
+      if (client === ws) {
+        players.delete(username);
+        choices.delete(username);
+        broadcastUserList(); // 接続が切断されたことを通知
+      }
+    });
   });
 
   ws.on('message', (message) => {
@@ -31,20 +32,20 @@ wss.on('connection', (ws) => {
     if (data.type === 'join') {
       // クライアントがユーザー名を送信したときの処理
       const username = data.username;
-      players.set(ws, username);
+      players.set(username, ws);
+      choices.set(username, null); // 最初はじゃんけんの手は未選択
 
       // 新しいユーザーが接続したことをすべてのクライアントに通知
       broadcastUserList();
     } else if (data.type === 'game') {
       // じゃんけんの処理
+      const username = data.username;
       const playerChoice = data.playerChoice;
-      choices.set(ws, playerChoice);
-      console.log(choices.size);
-      console.log(Array.from(choices.values()));
+      choices.set(username, playerChoice);
       broadcastChoicesList();
-      if (choices.size === 2) {
-        // 2人揃ったらじゃんけんの結果を計算して返す
-        const [player1, player2] = Array.from(players);
+      
+      if (allPlayersMadeChoice()) {
+        // すべてのユーザーが手を選択したらじゃんけんの結果を計算して返す
         const result = determineWinner(choices.get(player1), choices.get(player2));
         console.log(player1);
         console.log(player2);
@@ -53,25 +54,22 @@ wss.on('connection', (ws) => {
   
         // 結果を送信
         broadcastResult(result);
-  
-        // 選択をリセット
-        choices.clear();
+        resetChoices(); // 選択をリセット
       }
     }
-
   });
 });
 
 function broadcastResult(result) {
-  players.forEach((player) => {
-    if (player.readyState === WebSocket.OPEN) {
-      player.send(JSON.stringify({ result }));
+  players.forEach((client, username) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({ result }));
     }
   });
 }
 
 function broadcastUserList() {
-  const usernames = Array.from(players.values());
+  const usernames = Array.from(players.keys());
   const userListMessage = JSON.stringify({ type: 'userList', usernames });
 
   // すべてのクライアントにユーザーリストを通知
@@ -83,8 +81,8 @@ function broadcastUserList() {
 }
 
 function broadcastChoicesList() {
-  const playersChoices = Array.from(choices.values());
-  const choicesMessage = JSON.stringify({ type: 'userList', playersChoices });
+  const userChoices = Array.from(choices.entries());
+  const choicesMessage = JSON.stringify({ type: 'choicesList', userChoices });
 
   // すべてのクライアントにユーザーリストを通知
   wss.clients.forEach((client) => {
@@ -107,6 +105,16 @@ function determineWinner(player1Choice, player2Choice) {
   } else {
     return 'Player 2 wins!';
   }
+}
+
+function allPlayersMadeChoice() {
+  return Array.from(choices.values()).every(choice => choice !== null);
+}
+
+function resetChoices() {
+  choices.forEach((_, username) => {
+    choices.set(username, null);
+  });
 }
 
 server.listen(3000, () => {
