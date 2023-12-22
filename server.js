@@ -8,34 +8,58 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 const players = new Set();
+let choices = new Map();
 
 wss.on('connection', (ws) => {
-  // WebSocket接続が確立された時の処理
   console.log('WebSocket connection established');
 
-  // 新しいプレイヤーをセットに追加
   players.add(ws);
 
-  // クライアントが接続を切断したときの処理
   ws.on('close', () => {
     console.log('WebSocket connection closed');
     players.delete(ws);
+    choices.delete(ws);
   });
 
-  // クライアントからのメッセージを処理
   ws.on('message', (message) => {
-    // すべてのプレイヤーにメッセージを送信
-    broadcast(message);
+    const playerChoice = JSON.parse(message).playerChoice;
+    choices.set(ws, playerChoice);
+
+    if (choices.size === 2) {
+      // 2人揃ったらじゃんけんの結果を計算して返す
+      const [player1, player2] = Array.from(players);
+      const result = determineWinner(choices.get(player1), choices.get(player2));
+
+      // 結果を送信
+      broadcastResult(result);
+
+      // 選択をリセット
+      choices.clear();
+    }
   });
 });
 
-function broadcast(message) {
-  // すべてのプレイヤーにメッセージを送信
+function broadcastResult(result) {
   players.forEach((player) => {
     if (player.readyState === WebSocket.OPEN) {
-      player.send(message);
+      player.send(JSON.stringify({ result }));
     }
   });
+}
+
+function determineWinner(player1Choice, player2Choice) {
+  // じゃんけんの勝敗ロジック
+  if (
+    (player1Choice === 'rock' && player2Choice === 'scissors') ||
+    (player1Choice === 'paper' && player2Choice === 'rock') ||
+    (player1Choice === 'scissors' && player2Choice === 'paper')
+  ) {
+    return 'Player 1 wins!';
+  } else if (player1Choice === player2Choice) {
+    return 'It\'s a draw!';
+  } else {
+    return 'Player 2 wins!';
+  }
 }
 
 server.listen(3000, () => {
