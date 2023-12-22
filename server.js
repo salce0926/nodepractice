@@ -46,6 +46,8 @@ wss.on('connection', (ws) => {
         // 2人揃ったらじゃんけんの結果を計算して返す
         const [player1, player2] = Array.from(players);
         const result = determineWinner(choices.get(player1), choices.get(player2));
+        console.log(player1);
+        console.log(player2);
         console.log(choices.get(player1));
         console.log(choices.get(player2));
   
