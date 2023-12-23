@@ -7,8 +7,7 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-const players = new Map(); // ユーザー名をWebSocketオブジェクトにマップ
-const choices = new Map(); // ユーザー名をじゃんけんの手にマップ
+const players = new Map(); // WebSocketオブジェクトとじゃんけんの手をユーザー名にマップ
 
 wss.on('connection', (ws) => {
   console.log('WebSocket connection established');
@@ -17,13 +16,13 @@ wss.on('connection', (ws) => {
     console.log('WebSocket connection closed');
 
     // クライアントが接続を切断したときにクリーンアップ
-    players.forEach((client, username) => {
-      if (client === ws) {
+    for (const [username, { connection }] of players.entries()) {
+      if (connection === ws) {
         players.delete(username);
-        choices.delete(username);
         broadcastUserList(); // 接続が切断されたことを通知
+        break;
       }
-    });
+    }
   });
 
   ws.on('message', (message) => {
@@ -32,8 +31,7 @@ wss.on('connection', (ws) => {
     if (data.type === 'join') {
       // クライアントがユーザー名を送信したときの処理
       const username = data.username;
-      players.set(username, ws);
-      choices.set(username, null); // 最初はじゃんけんの手は未選択
+      players.set(username, { connection: ws, choice: null }); // 最初はじゃんけんの手は未選択
 
       // 新しいユーザーが接続したことをすべてのクライアントに通知
       broadcastUserList();
@@ -41,18 +39,12 @@ wss.on('connection', (ws) => {
       // じゃんけんの処理
       const username = data.username;
       const playerChoice = data.playerChoice;
-      choices.set(username, playerChoice);
+      players.get(username).choice = playerChoice;
       broadcastChoicesList();
       
       if (allPlayersMadeChoice()) {
         // すべてのユーザーが手を選択したらじゃんけんの結果を計算して返す
-        const result = determineWinner(choices.get(player1), choices.get(player2));
-        console.log(player1);
-        console.log(player2);
-        console.log(choices.get(player1));
-        console.log(choices.get(player2));
-  
-        // 結果を送信
+        const result = determineWinner(players);
         broadcastResult(result);
         resetChoices(); // 選択をリセット
       }
@@ -61,11 +53,11 @@ wss.on('connection', (ws) => {
 });
 
 function broadcastResult(result) {
-  players.forEach((client, username) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({ result }));
+  for (const { connection } of players.values()) {
+    if (connection.readyState === WebSocket.OPEN) {
+      connection.send(JSON.stringify({ result }));
     }
-  });
+  }
 }
 
 function broadcastUserList() {
@@ -81,7 +73,7 @@ function broadcastUserList() {
 }
 
 function broadcastChoicesList() {
-  const userChoices = Array.from(choices.entries());
+  const userChoices = Array.from(players.entries()).map(([username, { choice }]) => [username, choice]);
   const choicesMessage = JSON.stringify({ type: 'choicesList', userChoices });
 
   // すべてのクライアントにユーザーリストを通知
@@ -92,28 +84,31 @@ function broadcastChoicesList() {
   });
 }
 
-function determineWinner(player1Choice, player2Choice) {
+function determineWinner(players) {
+  const choices = Array.from(players.values()).map(({ choice }) => choice);
+
   // じゃんけんの勝敗ロジック
   if (
-    (player1Choice === 'rock' && player2Choice === 'scissors') ||
-    (player1Choice === 'paper' && player2Choice === 'rock') ||
-    (player1Choice === 'scissors' && player2Choice === 'paper')
+    (choices[0] === 'rock' && choices[1] === 'scissors') ||
+    (choices[0] === 'paper' && choices[1] === 'rock') ||
+    (choices[0] === 'scissors' && choices[1] === 'paper')
   ) {
-    return 'Player 1 wins!';
-  } else if (player1Choice === player2Choice) {
+    return `${usernames[0]} wins!`;
+  } else if (choices[0] === choices[1]) {
     return 'It\'s a draw!';
   } else {
-    return 'Player 2 wins!';
+    return `${usernames[1]} wins!`;
   }
 }
 
+
 function allPlayersMadeChoice() {
-  return Array.from(choices.values()).every(choice => choice !== null);
+  return Array.from(players.values()).every(({ choice }) => choice !== null);
 }
 
 function resetChoices() {
-  choices.forEach((_, username) => {
-    choices.set(username, null);
+  players.forEach((player) => {
+    player.choice = null;
   });
 }
 
