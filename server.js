@@ -40,8 +40,7 @@ wss.on('connection', (ws) => {
       const username = data.username;
       const playerChoice = data.playerChoice;
       players.get(username).choice = playerChoice;
-      broadcastChoicesList();
-      console.log(allPlayersMadeChoice() ? 'true' : 'false');
+      broadcastUserList();
       
       if (allPlayersMadeChoice()) {
         // すべてのユーザーが手を選択したらじゃんけんの結果を計算して返す
@@ -62,20 +61,8 @@ function broadcastResult(result) {
 }
 
 function broadcastUserList() {
-  const usernames = Array.from(players.keys());
-  const userListMessage = JSON.stringify({ type: 'userList', usernames });
-
-  // すべてのクライアントにユーザーリストを通知
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(userListMessage);
-    }
-  });
-}
-
-function broadcastChoicesList() {
   const userChoices = Array.from(players.entries()).map(([username, { choice }]) => [username, choice]);
-  const choicesMessage = JSON.stringify({ type: 'choicesList', userChoices });
+  const userListMessage = JSON.stringify({ type: 'userList', userChoices });
 
   // すべてのクライアントにユーザーリストを通知
   wss.clients.forEach((client) => {
