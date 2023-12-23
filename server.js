@@ -86,7 +86,7 @@ function broadcastChoicesList() {
 }
 
 function determineWinner(players) {
-  const usernames = Array.from(players.keys()).map(({ username }) => username);
+  const usernames = Array.from(players.keys());
   const choices = Array.from(players.values()).map(({ choice }) => choice);
 
   // じゃんけんの勝敗ロジック
