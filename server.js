@@ -41,7 +41,7 @@ wss.on('connection', (ws) => {
       const playerChoice = data.playerChoice;
       players.get(username).choice = playerChoice;
       broadcastChoicesList();
-      console.log(allPlayersMadeChoice());
+      console.log(allPlayersMadeChoice() ? 'true' : 'false');
       
       if (allPlayersMadeChoice()) {
         // すべてのユーザーが手を選択したらじゃんけんの結果を計算して返す
