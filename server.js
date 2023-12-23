@@ -67,7 +67,7 @@ function broadcastUserList() {
   // すべてのクライアントにユーザーリストを通知
   wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
-      client.send(choicesMessage);
+      client.send(userListMessage);
     }
   });
 }
